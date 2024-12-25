@@ -34,3 +34,22 @@ jobs:
 
       - name: Typecheck
         run: pnpm typecheck
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+          registry-url: https://registry.npmjs.org
+
+      - shell: bash
+        run: corepack enable
+
+      - shell: bash
+        run: pnpm install
+      
+      - name: Test
+        run: pnpm test run
