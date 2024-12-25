@@ -3,7 +3,7 @@
   "name": "liteque",
   "description": "A sqlite-based job queue for Node.js",
   "author": "Mohamed Bassem <me@mbassem.com>",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -12,6 +12,16 @@
     "README.md",
     "LICENSE"
   ],
+  "exports": {
+     ".": {
+       "types": "./dist/index.d.ts",
+       "import": "./dist/index.js"
+     }
+   },
+   "sideEffects": false,
+   "engines": {
+     "node": ">=21"
+   },
   "license": "MIT",
   "repository": {
     "type": "git",
