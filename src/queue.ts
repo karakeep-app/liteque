@@ -33,9 +33,13 @@ export class SqliteQueue<T> {
    * Enqueue a job into the queue.
    * If a job with the same idempotency key is already enqueued, it will be ignored and undefined will be returned.
    */
-  async enqueue(payload: T, options?: EnqueueOptions): Promise<Job | undefined> {
+  async enqueue(
+    payload: T,
+    options?: EnqueueOptions,
+  ): Promise<Job | undefined> {
     const opts = options ?? {};
-    const numRetries = opts.numRetries ?? this.options.defaultJobArgs.numRetries;
+    const numRetries =
+      opts.numRetries ?? this.options.defaultJobArgs.numRetries;
     const [job] = await this.db
       .insert(tasksTable)
       .values({
@@ -46,7 +50,9 @@ export class SqliteQueue<T> {
         allocationId: generateAllocationId(),
         idempotencyKey: opts.idempotencyKey,
       })
-      .onConflictDoNothing({target: [tasksTable.queue, tasksTable.idempotencyKey]})
+      .onConflictDoNothing({
+        target: [tasksTable.queue, tasksTable.idempotencyKey],
+      })
       .returning();
 
     return job;
@@ -100,10 +106,10 @@ export class SqliteQueue<T> {
         .orderBy(asc(tasksTable.createdAt))
         .limit(1);
 
-      if (jobs.length == 0) {
+      if (jobs.length === 0) {
         return null;
       }
-      assert(jobs.length == 1);
+      assert(jobs.length === 1);
       const job = jobs[0];
 
       const result = await txn
@@ -123,10 +129,10 @@ export class SqliteQueue<T> {
           ),
         )
         .returning();
-      if (result.length == 0) {
+      if (result.length === 0) {
         return null;
       }
-      assert(result.length == 1);
+      assert(result.length === 1);
       return result[0];
     });
   }
@@ -136,7 +142,10 @@ export class SqliteQueue<T> {
     alloctionId: string,
     status: "completed" | "pending_retry" | "failed",
   ) {
-    if (status == "completed" || (status == "failed" && !this.options.keepFailedJobs)) {
+    if (
+      status === "completed" ||
+      (status === "failed" && !this.options.keepFailedJobs)
+    ) {
       await this.db
         .delete(tasksTable)
         .where(

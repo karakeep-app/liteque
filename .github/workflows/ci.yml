@@ -34,6 +34,25 @@ jobs:
 
       - name: Typecheck
         run: pnpm typecheck
+  format-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+          registry-url: https://registry.npmjs.org
+
+      - shell: bash
+        run: corepack enable
+
+      - shell: bash
+        run: pnpm install
+
+      - name: Format and lint
+        run: pnpm exec biome ci
   test:
     runs-on: ubuntu-latest
     steps:

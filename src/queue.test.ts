@@ -1,10 +1,7 @@
 /* eslint-disable @typescript-eslint/require-await */
 import { describe, expect, test } from "vitest";
 
-import {
-    buildDBClient,
-    SqliteQueue
-} from "./";
+import { SqliteQueue, buildDBClient } from "./";
 
 interface Work {
   increment: number;
@@ -37,7 +34,6 @@ describe("SqliteQueue", () => {
       pending_retry: 0,
       failed: 0,
     });
-
   });
 
   test("keep failed jobs", async () => {

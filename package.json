@@ -7,20 +7,13 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["dist", "README.md", "LICENSE"],
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hoarder-app/liteque.git"
   },
-  "keywords": [
-    "sqlite",
-    "queue"
-  ],
+  "keywords": ["sqlite", "queue"],
   "dependencies": {
     "async-mutex": "^0.4.1",
     "drizzle-orm": "^0.33.0",
@@ -30,6 +23,7 @@
     "better-sqlite3": ">=7"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "@tsconfig/node21": "^21.0.3",
     "@types/better-sqlite3": "^7.6.11",
     "drizzle-kit": "^0.24.02",
@@ -40,8 +34,10 @@
     "build": "tsc -d && cp -r src/drizzle dist/drizzle",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "format": "prettier . --ignore-path ../../.prettierignore",
-    "lint": "eslint ."
+    "format": "biome format",
+    "format:fix": "biome format --write",
+    "lint": "biome lint",
+    "lint:fix": "biome lint --write"
   },
   "packageManager": "pnpm@9.12.1+sha512.e5a7e52a4183a02d5931057f7a0dbff9d5e9ce3161e33fa68ae392125b79282a8a8a470a51dfc8a0ed86221442eb2fb57019b0990ed24fab519bf0e1bc5ccfc4"
 }

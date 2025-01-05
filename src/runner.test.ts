@@ -5,12 +5,12 @@ import { describe, expect, test } from "vitest";
 import { z } from "zod";
 
 import {
-  buildDBClient,
   DequeuedJob,
   DequeuedJobError,
   Runner,
   RunnerOptions,
   SqliteQueue,
+  buildDBClient,
 } from "./";
 import { tasksTable } from "./schema";
 
@@ -29,7 +29,7 @@ class Baton {
   }
 
   reset() {
-    this.semaphore.setValue(-Infinity);
+    this.semaphore.setValue(Number.NEGATIVE_INFINITY);
   }
 }
 
@@ -129,7 +129,7 @@ function buildRunner(
       },
       onError: async (job: DequeuedJobError<Work>) => {
         console.log("FAILED:", job);
-        if (job.numRetriesLeft == 0) {
+        if (job.numRetriesLeft === 0) {
           results.numFailed++;
         }
       },
@@ -255,7 +255,7 @@ describe("SqiteQueueRunner", () => {
 
     const barrier = new Barrier(1);
     barrier.allowParticipantsToProceed();
-    const { runner: runner, results } = buildRunner(
+    const { runner, results } = buildRunner(
       queue,
       { ...defaultRunnerOpts, concurrency: 1, timeoutSecs: 1 },
       barrier,
@@ -414,7 +414,7 @@ describe("SqiteQueueRunner", () => {
 
     for (let i = 0; i < 10; i++) {
       const { runner } = buildRunner(
-        i % 2 == 0 ? queue1 : queue2,
+        i % 2 === 0 ? queue1 : queue2,
         { ...defaultRunnerOpts, concurrency: 2 },
         barrier,
         results,
@@ -427,7 +427,7 @@ describe("SqiteQueueRunner", () => {
       const enqueuePromises = [];
       for (let i = 0; i < 1000; i++) {
         enqueuePromises.push(
-          (i % 2 == 0 ? queue1 : queue2).enqueue({ increment: i }),
+          (i % 2 === 0 ? queue1 : queue2).enqueue({ increment: i }),
         );
       }
       await Promise.all(enqueuePromises);

@@ -42,7 +42,7 @@ export class Runner<T> {
       const job = await this.queue.attemptDequeue({
         timeoutSecs: this.opts.timeoutSecs,
       });
-      if (!job && breakOnEmpty && inFlight.size == 0) {
+      if (!job && breakOnEmpty && inFlight.size === 0) {
         // No more jobs to process, and no ongoing jobs.
         break;
       }
@@ -74,12 +74,14 @@ export class Runner<T> {
         parsed = this.opts.validator.parse(parsed);
       }
     } catch (e) {
-      await this.funcs.onError?.({
-        id: job.id.toString(),
-        error: e as Error,
-        runNumber,
-        numRetriesLeft: job.numRunsLeft,
-      }).catch(() => {});
+      await this.funcs
+        .onError?.({
+          id: job.id.toString(),
+          error: e as Error,
+          runNumber,
+          numRetriesLeft: job.numRunsLeft,
+        })
+        .catch(() => {});
       await this.queue.finalize(
         job.id,
         job.allocationId,
@@ -106,12 +108,14 @@ export class Runner<T> {
       await this.funcs.onComplete?.(dequeuedJob);
       await this.queue.finalize(job.id, job.allocationId, "completed");
     } catch (e) {
-      await this.funcs.onError?.({
-        ...dequeuedJob,
-        error: e as Error,
-        runNumber,
-        numRetriesLeft: job.numRunsLeft,
-      }).catch(() => {});
+      await this.funcs
+        .onError?.({
+          ...dequeuedJob,
+          error: e as Error,
+          runNumber,
+          numRetriesLeft: job.numRunsLeft,
+        })
+        .catch(() => {});
       await this.queue.finalize(
         job.id,
         job.allocationId,

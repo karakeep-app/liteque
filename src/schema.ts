@@ -1,4 +1,10 @@
-import { index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
+import {
+  index,
+  integer,
+  sqliteTable,
+  text,
+  unique,
+} from "drizzle-orm/sqlite-core";
 
 function createdAtField() {
   return integer("createdAt", { mode: "timestamp" })
