@@ -2,6 +2,7 @@ export interface DequeuedJob<T> {
   id: string;
   data: T;
   runNumber: number;
+  abortSignal: AbortSignal;
 }
 
 export interface DequeuedJobError<T> {

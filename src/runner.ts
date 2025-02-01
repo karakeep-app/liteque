@@ -90,19 +90,21 @@ export class Runner<T> {
       return;
     }
 
+    const abortController = new AbortController();
     const dequeuedJob: DequeuedJob<T> = {
       id: job.id.toString(),
       data: parsed,
       runNumber,
+      abortSignal: abortController.signal,
     };
     try {
       await Promise.race([
         this.funcs.run(dequeuedJob),
         new Promise((_, reject) =>
-          setTimeout(
-            () => reject(new Error("Timeout")),
-            this.opts.timeoutSecs * 1000,
-          ),
+          setTimeout(() => {
+            abortController.abort();
+            reject(new Error("Timeout"));
+          }, this.opts.timeoutSecs * 1000),
         ),
       ]);
       await this.funcs.onComplete?.(dequeuedJob);
