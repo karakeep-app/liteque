@@ -12,6 +12,7 @@ export interface SqliteQueueOptions {
 export interface EnqueueOptions {
   numRetries?: number;
   idempotencyKey?: string;
+  priority?: number;
 }
 
 export interface RunnerFuncs<T> {

@@ -40,6 +40,7 @@ export class SqliteQueue<T> {
     const opts = options ?? {};
     const numRetries =
       opts.numRetries ?? this.options.defaultJobArgs.numRetries;
+    const priority = opts.priority ?? 0;
     const [job] = await this.db
       .insert(tasksTable)
       .values({
@@ -49,6 +50,7 @@ export class SqliteQueue<T> {
         maxNumRuns: numRetries + 1,
         allocationId: generateAllocationId(),
         idempotencyKey: opts.idempotencyKey,
+        priority: priority,
       })
       .onConflictDoNothing({
         target: [tasksTable.queue, tasksTable.idempotencyKey],
@@ -103,7 +105,7 @@ export class SqliteQueue<T> {
             ),
           ),
         )
-        .orderBy(asc(tasksTable.createdAt))
+        .orderBy(asc(tasksTable.priority), asc(tasksTable.createdAt))
         .limit(1);
 
       if (jobs.length === 0) {

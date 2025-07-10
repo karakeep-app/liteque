@@ -15,6 +15,13 @@
       "when": 1730656128884,
       "tag": "0001_wandering_giant_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1752135917070,
+      "tag": "0002_add_priority",
+      "breakpoints": true
     }
   ]
 }

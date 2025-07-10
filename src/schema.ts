@@ -29,6 +29,7 @@ export const tasksTable = sqliteTable(
     numRunsLeft: integer("numRunsLeft").notNull(),
     maxNumRuns: integer("maxNumRuns").notNull(),
     idempotencyKey: text("idempotencyKey"),
+    priority: integer("priority").notNull().default(0),
   },
   (tasks) => ({
     queueIdx: index("tasks_queue_idx").on(tasks.queue),
@@ -37,6 +38,7 @@ export const tasksTable = sqliteTable(
     numRunsLeftIdx: index("tasks_num_runs_left_idx").on(tasks.numRunsLeft),
     maxNumRunsIdx: index("tasks_max_num_runs_idx").on(tasks.maxNumRuns),
     allocationIdIdx: index("tasks_allocation_id_idx").on(tasks.allocationId),
+    priorityIdx: index("tasks_priority_idx").on(tasks.priority),
     idempotencyKeyIdx: unique().on(tasks.queue, tasks.idempotencyKey),
   }),
 );
