@@ -78,6 +78,7 @@ export class Runner<T> {
         .onError?.({
           id: job.id.toString(),
           error: e as Error,
+          priority: job.priority,
           runNumber,
           numRetriesLeft: job.numRunsLeft,
         })
@@ -94,6 +95,7 @@ export class Runner<T> {
     const dequeuedJob: DequeuedJob<T> = {
       id: job.id.toString(),
       data: parsed,
+      priority: job.priority,
       runNumber,
       abortSignal: abortController.signal,
     };
