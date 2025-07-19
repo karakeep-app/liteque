@@ -90,7 +90,6 @@ async function waitUntilAllSettled(queue: SqliteQueue<Work>) {
   while (stats.running > 0 || stats.pending > 0 || stats.pending_retry > 0) {
     await new Promise((resolve) => setTimeout(resolve, 100));
     stats = await queue.stats();
-    console.log(stats);
   }
 }
 
@@ -110,7 +109,6 @@ function buildRunner(
     queue,
     {
       run: async (job: DequeuedJob<Work>) => {
-        console.log("STARTED:", job);
         results.numCalled++;
         await barrier.notifyReachedAndWait();
         if (job.runNumber < (job.data.succeedAfter ?? 0)) {
@@ -124,11 +122,9 @@ function buildRunner(
         results.result += job.data.increment;
       },
       onComplete: async (job: DequeuedJob<Work>) => {
-        console.log("COMPLETED:", job);
         results.numCompleted++;
       },
       onError: async (job: DequeuedJobError<Work>) => {
-        console.log("FAILED:", job);
         if (job.numRetriesLeft === 0) {
           results.numFailed++;
         }
