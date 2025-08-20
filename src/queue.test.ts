@@ -226,4 +226,206 @@ describe("SqliteQueue", () => {
     expect(JSON.parse(job3!.payload).increment).toBe(3); // priority 0
     expect(JSON.parse(job4!.payload).increment).toBe(1); // priority 1
   });
+
+  test("cancelAllNonRunning cancels pending, pending_retry, and failed jobs", async () => {
+    const queue = new SqliteQueue<Work>(
+      "cancel-queue",
+      buildDBClient(":memory:", true),
+      {
+        defaultJobArgs: {
+          numRetries: 1,
+        },
+        keepFailedJobs: true,
+      },
+    );
+
+    // Enqueue some jobs
+    await queue.enqueue({ increment: 1 });
+    await queue.enqueue({ increment: 2 });
+    await queue.enqueue({ increment: 3 });
+
+    expect(await queue.stats()).toEqual({
+      pending: 3,
+      running: 0,
+      pending_retry: 0,
+      failed: 0,
+    });
+
+    // Make one job running and one failed
+    const dequeuedJob = await queue.attemptDequeue({ timeoutSecs: 30 });
+    expect(dequeuedJob).not.toBeNull();
+    await queue.finalize(dequeuedJob!.id, dequeuedJob!.allocationId, "failed");
+
+    expect(await queue.stats()).toEqual({
+      pending: 2,
+      running: 0,
+      pending_retry: 0,
+      failed: 1,
+    });
+
+    // Cancel all non-running tasks
+    const cancelledCount = await queue.cancelAllNonRunning();
+    expect(cancelledCount).toBe(3); // 2 pending + 1 failed
+
+    expect(await queue.stats()).toEqual({
+      pending: 0,
+      running: 0,
+      pending_retry: 0,
+      failed: 0,
+    });
+  });
+
+  test("cancelAllNonRunning does not affect running jobs", async () => {
+    const queue = new SqliteQueue<Work>(
+      "cancel-running-queue",
+      buildDBClient(":memory:", true),
+      {
+        defaultJobArgs: {
+          numRetries: 0,
+        },
+        keepFailedJobs: false,
+      },
+    );
+
+    // Enqueue jobs
+    await queue.enqueue({ increment: 1 });
+    await queue.enqueue({ increment: 2 });
+
+    // Dequeue one job (making it running)
+    const runningJob = await queue.attemptDequeue({ timeoutSecs: 30 });
+    expect(runningJob).not.toBeNull();
+
+    expect(await queue.stats()).toEqual({
+      pending: 1,
+      running: 1,
+      pending_retry: 0,
+      failed: 0,
+    });
+
+    // Cancel all non-running tasks
+    const cancelledCount = await queue.cancelAllNonRunning();
+    expect(cancelledCount).toBe(1); // Only the pending job
+
+    expect(await queue.stats()).toEqual({
+      pending: 0,
+      running: 1, // Running job remains
+      pending_retry: 0,
+      failed: 0,
+    });
+  });
+
+  test("cancelAllNonRunning only affects the specific queue", async () => {
+    const db = buildDBClient(":memory:", true);
+    const queue1 = new SqliteQueue<Work>("queue1", db, {
+      defaultJobArgs: { numRetries: 0 },
+      keepFailedJobs: false,
+    });
+    const queue2 = new SqliteQueue<Work>("queue2", db, {
+      defaultJobArgs: { numRetries: 0 },
+      keepFailedJobs: false,
+    });
+
+    // Add jobs to both queues
+    await queue1.enqueue({ increment: 1 });
+    await queue1.enqueue({ increment: 2 });
+    await queue2.enqueue({ increment: 3 });
+    await queue2.enqueue({ increment: 4 });
+
+    expect(await queue1.stats()).toEqual({
+      pending: 2,
+      running: 0,
+      pending_retry: 0,
+      failed: 0,
+    });
+    expect(await queue2.stats()).toEqual({
+      pending: 2,
+      running: 0,
+      pending_retry: 0,
+      failed: 0,
+    });
+
+    // Cancel only queue1's tasks
+    const cancelledCount = await queue1.cancelAllNonRunning();
+    expect(cancelledCount).toBe(2);
+
+    expect(await queue1.stats()).toEqual({
+      pending: 0,
+      running: 0,
+      pending_retry: 0,
+      failed: 0,
+    });
+    expect(await queue2.stats()).toEqual({
+      pending: 2, // queue2 tasks remain untouched
+      running: 0,
+      pending_retry: 0,
+      failed: 0,
+    });
+  });
+
+  test("cancelAllNonRunning returns 0 when no tasks to cancel", async () => {
+    const queue = new SqliteQueue<Work>(
+      "empty-cancel-queue",
+      buildDBClient(":memory:", true),
+      {
+        defaultJobArgs: {
+          numRetries: 0,
+        },
+        keepFailedJobs: false,
+      },
+    );
+
+    const cancelledCount = await queue.cancelAllNonRunning();
+    expect(cancelledCount).toBe(0);
+
+    expect(await queue.stats()).toEqual({
+      pending: 0,
+      running: 0,
+      pending_retry: 0,
+      failed: 0,
+    });
+  });
+
+  test("cancelAllNonRunning handles pending_retry status", async () => {
+    const queue = new SqliteQueue<Work>(
+      "retry-cancel-queue",
+      buildDBClient(":memory:", true),
+      {
+        defaultJobArgs: {
+          numRetries: 2,
+        },
+        keepFailedJobs: false,
+      },
+    );
+
+    // Enqueue a job
+    const job = await queue.enqueue({ increment: 1 });
+    expect(job).not.toBeUndefined();
+
+    // Dequeue and mark as pending_retry
+    const dequeuedJob = await queue.attemptDequeue({ timeoutSecs: 30 });
+    expect(dequeuedJob).not.toBeNull();
+    await queue.finalize(
+      dequeuedJob!.id,
+      dequeuedJob!.allocationId,
+      "pending_retry",
+    );
+
+    expect(await queue.stats()).toEqual({
+      pending: 0,
+      running: 0,
+      pending_retry: 1,
+      failed: 0,
+    });
+
+    // Cancel all non-running tasks
+    const cancelledCount = await queue.cancelAllNonRunning();
+    expect(cancelledCount).toBe(1);
+
+    expect(await queue.stats()).toEqual({
+      pending: 0,
+      running: 0,
+      pending_retry: 0,
+      failed: 0,
+    });
+  });
 });

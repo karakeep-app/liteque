@@ -162,4 +162,28 @@ export class SqliteQueue<T> {
         );
     }
   }
+
+  /**
+   * Cancel all non-running tasks in the queue.
+   * This includes tasks with status "pending", "pending_retry", and "failed".
+   * Running tasks are not affected.
+   * @returns The number of tasks that were cancelled
+   */
+  async cancelAllNonRunning(): Promise<number> {
+    const result = await this.db
+      .delete(tasksTable)
+      .where(
+        and(
+          eq(tasksTable.queue, this.queueName),
+          or(
+            eq(tasksTable.status, "pending"),
+            eq(tasksTable.status, "pending_retry"),
+            eq(tasksTable.status, "failed"),
+          ),
+        ),
+      )
+      .returning({ id: tasksTable.id });
+
+    return result.length;
+  }
 }
