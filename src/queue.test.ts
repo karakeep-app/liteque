@@ -230,7 +230,7 @@ describe("SqliteQueue", () => {
   test("cancelAllNonRunning cancels pending, pending_retry, and failed jobs", async () => {
     const queue = new SqliteQueue<Work>(
       "cancel-queue",
-      buildDBClient(":memory:", true),
+      buildDBClient(":memory:", { runMigrations: true }),
       {
         defaultJobArgs: {
           numRetries: 1,
@@ -278,7 +278,7 @@ describe("SqliteQueue", () => {
   test("cancelAllNonRunning does not affect running jobs", async () => {
     const queue = new SqliteQueue<Work>(
       "cancel-running-queue",
-      buildDBClient(":memory:", true),
+      buildDBClient(":memory:", { runMigrations: true }),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -315,7 +315,7 @@ describe("SqliteQueue", () => {
   });
 
   test("cancelAllNonRunning only affects the specific queue", async () => {
-    const db = buildDBClient(":memory:", true);
+    const db = buildDBClient(":memory:", { runMigrations: true });
     const queue1 = new SqliteQueue<Work>("queue1", db, {
       defaultJobArgs: { numRetries: 0 },
       keepFailedJobs: false,
@@ -365,7 +365,7 @@ describe("SqliteQueue", () => {
   test("cancelAllNonRunning returns 0 when no tasks to cancel", async () => {
     const queue = new SqliteQueue<Work>(
       "empty-cancel-queue",
-      buildDBClient(":memory:", true),
+      buildDBClient(":memory:", { runMigrations: true }),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -388,7 +388,7 @@ describe("SqliteQueue", () => {
   test("cancelAllNonRunning handles pending_retry status", async () => {
     const queue = new SqliteQueue<Work>(
       "retry-cancel-queue",
-      buildDBClient(":memory:", true),
+      buildDBClient(":memory:", { runMigrations: true }),
       {
         defaultJobArgs: {
           numRetries: 2,
