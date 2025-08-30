@@ -9,12 +9,35 @@ import * as schema from "./schema";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export function buildDBClient(dbPath: string, runMigrations = false) {
+export type Options = {
+  runMigrations?: boolean;
+  walEnabled?: boolean;
+};
+
+const DEFAULT_DB_OPTIONS: Required<Options> = {
+  runMigrations: false,
+  walEnabled: true,
+};
+
+export function buildDBClient(dbPath: string, _options: Options = {}) {
+  const options = { ...DEFAULT_DB_OPTIONS, ..._options };
+
   const sqlite = new Database(dbPath);
+  if (options.walEnabled) {
+    sqlite.pragma("journal_mode = WAL");
+    sqlite.pragma("synchronous = NORMAL");
+  } else {
+    sqlite.pragma("journal_mode = DELETE");
+  }
+  sqlite.pragma("cache_size = -65536");
+  sqlite.pragma("foreign_keys = ON");
+  sqlite.pragma("temp_store = MEMORY");
+
   const db = drizzle(sqlite, { schema });
-  if (runMigrations) {
+  if (options.runMigrations) {
     migrateDB(db);
   }
+
   return db;
 }
 

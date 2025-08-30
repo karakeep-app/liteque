@@ -13,7 +13,7 @@ describe("SqliteQueue", () => {
   test("idempotency keys", async () => {
     const queue = new SqliteQueue<Work>(
       "queue1",
-      buildDBClient(":memory:", true),
+      buildDBClient(":memory:", { runMigrations: true }),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -39,7 +39,7 @@ describe("SqliteQueue", () => {
   test("keep failed jobs", async () => {
     const queueKeep = new SqliteQueue<Work>(
       "queue1",
-      buildDBClient(":memory:", true),
+      buildDBClient(":memory:", { runMigrations: true }),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -50,7 +50,7 @@ describe("SqliteQueue", () => {
 
     const queueDontKeep = new SqliteQueue<Work>(
       "queue2",
-      buildDBClient(":memory:", true),
+      buildDBClient(":memory:", { runMigrations: true }),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -95,7 +95,7 @@ describe("SqliteQueue", () => {
   test("priority ordering", async () => {
     const queue = new SqliteQueue<Work>(
       "priority-queue",
-      buildDBClient(":memory:", true),
+      buildDBClient(":memory:", { runMigrations: true }),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -145,7 +145,7 @@ describe("SqliteQueue", () => {
   test("priority with same priority uses FIFO", async () => {
     const queue = new SqliteQueue<Work>(
       "fifo-queue",
-      buildDBClient(":memory:", true),
+      buildDBClient(":memory:", { runMigrations: true }),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -176,7 +176,7 @@ describe("SqliteQueue", () => {
   test("default priority is 0", async () => {
     const queue = new SqliteQueue<Work>(
       "default-priority-queue",
-      buildDBClient(":memory:", true),
+      buildDBClient(":memory:", { runMigrations: true }),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -195,7 +195,7 @@ describe("SqliteQueue", () => {
   test("negative priorities work correctly", async () => {
     const queue = new SqliteQueue<Work>(
       "negative-priority-queue",
-      buildDBClient(":memory:", true),
+      buildDBClient(":memory:", { runMigrations: true }),
       {
         defaultJobArgs: {
           numRetries: 0,

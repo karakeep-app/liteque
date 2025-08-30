@@ -17,7 +17,9 @@ $ npm install liteque
 import { buildDBClient, Runner, SqliteQueue } from "liteque";
 import { z } from "zod";
 
-const db = buildDBClient(":memory:", true);
+const db = buildDBClient(":memory:", {
+  runMigrations: true,
+});
 
 const requestSchema = z.object({
     message: z.string(),
