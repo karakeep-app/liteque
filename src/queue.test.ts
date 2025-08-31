@@ -428,4 +428,131 @@ describe("SqliteQueue", () => {
       failed: 0,
     });
   });
+
+  test("availableAt scheduling", async () => {
+    const queue = new SqliteQueue<Work>(
+      "available-at-queue",
+      buildDBClient(":memory:", { runMigrations: true }),
+      {
+        defaultJobArgs: {
+          numRetries: 0,
+        },
+        keepFailedJobs: false,
+      },
+    );
+
+    // Enqueue job with availableAt in the future
+    const job = await queue.enqueue({ increment: 1 }, { delayMs: 5000 });
+
+    // Job should not be available for dequeue yet
+    const dequeuedJob = await queue.attemptDequeue({ timeoutSecs: 1 });
+    expect(dequeuedJob).toBeNull();
+
+    {
+      // Enqueue a new job available now
+      const enqueuedJob = await queue.enqueue({ increment: 2 });
+      // Should be able to dequeue the available job
+      const availableJob = await queue.attemptDequeue({ timeoutSecs: 1 });
+      expect(availableJob).not.toBeNull();
+      expect(enqueuedJob!.id).toBe(availableJob!.id);
+    }
+  });
+
+  test("availableAt jobs become available after the scheduled time", async () => {
+    const queue = new SqliteQueue<Work>(
+      "available-later-queue",
+      buildDBClient(":memory:", { runMigrations: true }),
+      {
+        defaultJobArgs: {
+          numRetries: 0,
+        },
+        keepFailedJobs: false,
+      },
+    );
+
+    // Enqueue job with availableAt very soon
+    const enqueuedJob = await queue.enqueue(
+      { increment: 1 },
+      { delayMs: 1000 },
+    );
+
+    {
+      // Shouldn't be able to dequeue the job yet
+      const dequeuedJob = await queue.attemptDequeue({ timeoutSecs: 0 });
+      expect(dequeuedJob).toBeNull();
+    }
+
+    // Wait for the time to pass
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    // Should now be able to dequeue the job
+    const dequeuedJob = await queue.attemptDequeue({ timeoutSecs: 0 });
+    expect(dequeuedJob).not.toBeNull();
+    expect(enqueuedJob!.id).toBe(dequeuedJob!.id);
+  });
+
+  test("finalize with refund retry increments numRunsLeft", async () => {
+    const queue = new SqliteQueue<Work>(
+      "refund-retry-queue",
+      buildDBClient(":memory:", { runMigrations: true }),
+      {
+        defaultJobArgs: {
+          numRetries: 1,
+        },
+        keepFailedJobs: true,
+      },
+    );
+
+    // Enqueue a job that will have 3 total attempts (initial + 2 retries)
+    const job = await queue.enqueue({ increment: 1 });
+    expect(job).not.toBeUndefined();
+
+    // Dequeue the job
+    const dequeuedJob = await queue.attemptDequeue({ timeoutSecs: 30 });
+    expect(dequeuedJob).not.toBeNull();
+    expect(dequeuedJob!.maxNumRuns).toBe(2); // 1 initial + 1 retries
+    expect(dequeuedJob!.numRunsLeft).toBe(1);
+
+    // Mark as pending_retry without refund - should consume one retry
+    await queue.finalize(
+      dequeuedJob!.id,
+      dequeuedJob!.allocationId,
+      "pending_retry",
+      new Date(),
+      false, // refundRetry = false
+    );
+
+    // Dequeue again to check numRunsLeft
+    const dequeuedJob2 = await queue.attemptDequeue({ timeoutSecs: 30 });
+    expect(dequeuedJob2).not.toBeNull();
+    expect(dequeuedJob2!.numRunsLeft).toBe(0); // One retry consumed
+
+    // Mark as pending_retry WITH refund - should NOT consume a retry
+    await queue.finalize(
+      dequeuedJob2!.id,
+      dequeuedJob2!.allocationId,
+      "pending_retry",
+      new Date(),
+      true, // refundRetry = true
+    );
+
+    // Dequeue again to check numRunsLeft
+    const dequeuedJob3 = await queue.attemptDequeue({ timeoutSecs: 30 });
+    expect(dequeuedJob3).not.toBeNull();
+    expect(dequeuedJob3!.numRunsLeft).toBe(0); // Same as before, retry was refunded
+
+    // Complete the job
+    await queue.finalize(
+      dequeuedJob3!.id,
+      dequeuedJob3!.allocationId,
+      "completed",
+    );
+
+    expect(await queue.stats()).toEqual({
+      pending: 0,
+      running: 0,
+      pending_retry: 0,
+      failed: 0,
+    });
+  });
 });

@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { and, asc, count, eq, gt, lt, or } from "drizzle-orm";
+import { and, asc, count, eq, gt, isNull, lt, lte, or, sql } from "drizzle-orm";
 
 import { buildDBClient } from "./db";
 import { EnqueueOptions, SqliteQueueOptions } from "./options";
@@ -41,6 +41,7 @@ export class SqliteQueue<T> {
     const numRetries =
       opts.numRetries ?? this.options.defaultJobArgs.numRetries;
     const priority = opts.priority ?? 0;
+    const availableAt = new Date(Date.now() + (opts.delayMs ?? 0));
     const [job] = await this.db
       .insert(tasksTable)
       .values({
@@ -51,6 +52,7 @@ export class SqliteQueue<T> {
         allocationId: generateAllocationId(),
         idempotencyKey: opts.idempotencyKey,
         priority: priority,
+        availableAt,
       })
       .onConflictDoNothing({
         target: [tasksTable.queue, tasksTable.idempotencyKey],
@@ -90,6 +92,10 @@ export class SqliteQueue<T> {
           and(
             eq(tasksTable.queue, this.queueName),
             gt(tasksTable.numRunsLeft, 0),
+            or(
+              lte(tasksTable.availableAt, new Date()),
+              isNull(tasksTable.availableAt),
+            ),
             or(
               // Not picked by a worker yet
               eq(tasksTable.status, "pending"),
@@ -143,6 +149,8 @@ export class SqliteQueue<T> {
     id: number,
     alloctionId: string,
     status: "completed" | "pending_retry" | "failed",
+    availableAt: Date = new Date(),
+    refundRetry = false,
   ) {
     if (
       status === "completed" ||
@@ -156,7 +164,14 @@ export class SqliteQueue<T> {
     } else {
       await this.db
         .update(tasksTable)
-        .set({ status: status, expireAt: null })
+        .set({
+          status: status,
+          expireAt: null,
+          availableAt,
+          numRunsLeft: refundRetry
+            ? sql<number>`${tasksTable.numRunsLeft} + 1`
+            : sql<number>`${tasksTable.numRunsLeft}`,
+        })
         .where(
           and(eq(tasksTable.id, id), eq(tasksTable.allocationId, alloctionId)),
         );

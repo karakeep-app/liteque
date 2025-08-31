@@ -4,7 +4,7 @@ import { Semaphore } from "async-mutex";
 import { RunnerFuncs, RunnerOptions } from "./options";
 import { SqliteQueue } from "./queue";
 import { Job } from "./schema";
-import { DequeuedJob } from "./types";
+import { DequeuedJob, RetryAfterError } from "./types";
 
 export class Runner<T> {
   queue: SqliteQueue<T>;
@@ -42,15 +42,25 @@ export class Runner<T> {
       const job = await this.queue.attemptDequeue({
         timeoutSecs: this.opts.timeoutSecs,
       });
-      if (!job && breakOnEmpty && inFlight.size === 0) {
-        // No more jobs to process, and no ongoing jobs.
-        break;
-      }
       if (!job) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, this.opts.pollIntervalMs),
-        );
-        continue;
+        if (inFlight.size > 0 || !breakOnEmpty) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, this.opts.pollIntervalMs),
+          );
+          continue;
+        }
+        assert(inFlight.size === 0);
+        assert(breakOnEmpty);
+
+        const queueStats = await this.queue.stats();
+        if (queueStats.pending + queueStats.pending_retry > 0) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, this.opts.pollIntervalMs),
+          );
+          continue;
+        }
+
+        break;
       }
       const [_, release] = await semaphore.acquire();
       inFlight.set(
@@ -112,6 +122,17 @@ export class Runner<T> {
       await this.funcs.onComplete?.(dequeuedJob);
       await this.queue.finalize(job.id, job.allocationId, "completed");
     } catch (e) {
+      if (e instanceof RetryAfterError) {
+        // Re-enqueue without consuming a retry attempt.
+        await this.queue.finalize(
+          job.id,
+          job.allocationId,
+          "pending_retry",
+          new Date(Date.now() + e.delayMs),
+          /* refundRetry */ true,
+        );
+        return;
+      }
       await this.funcs
         .onError?.({
           ...dequeuedJob,

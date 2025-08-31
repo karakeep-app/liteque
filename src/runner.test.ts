@@ -7,6 +7,7 @@ import { z } from "zod";
 import {
   DequeuedJob,
   DequeuedJobError,
+  RetryAfterError,
   Runner,
   RunnerOptions,
   SqliteQueue,
@@ -441,5 +442,127 @@ describe("SqiteQueueRunner", () => {
     expect(results.numCalled).toEqual(1000);
     expect(results.numCompleted).toEqual(1000);
     expect(results.numFailed).toEqual(0);
+  });
+
+  test("RetryAfterError re-enqueues job with delay without consuming retry", async () => {
+    const queue = new SqliteQueue<Work>(
+      "retry-after-queue",
+      buildDBClient(":memory:", { runMigrations: true }),
+      {
+        defaultJobArgs: {
+          numRetries: 2,
+        },
+        keepFailedJobs: true,
+      },
+    );
+
+    await queue.enqueue({ increment: 1 });
+
+    let attempts = 0;
+
+    const runner = new Runner<Work>(
+      queue,
+      {
+        run: async (job: DequeuedJob<Work>) => {
+          attempts++;
+          if (attempts === 1) {
+            // First attempt: throw RetryAfterError
+            throw new RetryAfterError(500); // 500ms delay
+          }
+          if (attempts === 2) {
+            // Second attempt: succeed
+            return;
+          }
+          throw new Error("Should not reach here");
+        },
+        onComplete: async () => {
+          // Job completed successfully
+        },
+        onError: async () => {
+          throw new Error("Should not reach onError for RetryAfterError");
+        },
+      },
+      { ...defaultRunnerOpts, concurrency: 1 },
+    );
+
+    const startTime = Date.now();
+    await runner.runUntilEmpty();
+    const endTime = Date.now();
+
+    // Should have taken at least 500ms due to the delay
+    expect(endTime - startTime).toBeGreaterThanOrEqual(490);
+
+    // Should have attempted twice
+    expect(attempts).toBe(2);
+
+    // Job should be completed (not failed)
+    expect(await queue.stats()).toEqual({
+      pending: 0,
+      running: 0,
+      pending_retry: 0,
+      failed: 0,
+    });
+  });
+
+  test("RetryAfterError preserves retry attempts", async () => {
+    const queue = new SqliteQueue<Work>(
+      "retry-after-preserve-queue",
+      buildDBClient(":memory:", { runMigrations: true }),
+      {
+        defaultJobArgs: {
+          numRetries: 1,
+        },
+        keepFailedJobs: true,
+      },
+    );
+
+    await queue.enqueue({ increment: 1 });
+
+    let attempts = 0;
+
+    const runner = new Runner<Work>(
+      queue,
+      {
+        run: async (job: DequeuedJob<Work>) => {
+          attempts++;
+          if (attempts === 1) {
+            // First attempt: throw RetryAfterError (should not consume retry)
+            throw new RetryAfterError(50);
+          }
+          if (attempts === 2) {
+            // Second attempt: throw regular error (should consume retry)
+            throw new Error("Regular failure");
+          }
+          if (attempts === 3) {
+            // Third attempt (final retry): also fail
+            throw new Error("Final failure");
+          }
+          throw new Error("Should not reach here");
+        },
+        onComplete: async () => {
+          throw new Error("Should not complete");
+        },
+        onError: async () => {
+          // Expected for regular failures
+        },
+      },
+      defaultRunnerOpts,
+    );
+
+    await runner.runUntilEmpty();
+
+    // Should have attempted 3 times:
+    // 1. RetryAfterError (doesn't consume retry)
+    // 2. Regular error (consumes retry)
+    // 3. Final retry attempt (fails)
+    expect(attempts).toBe(3);
+
+    // Job should be failed
+    expect(await queue.stats()).toEqual({
+      pending: 0,
+      running: 0,
+      pending_retry: 0,
+      failed: 1,
+    });
   });
 });

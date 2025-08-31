@@ -19,6 +19,9 @@ export const tasksTable = sqliteTable(
     queue: text("queue").notNull(),
     payload: text("payload").notNull(),
     createdAt: createdAtField(),
+    availableAt: integer("availableAt", { mode: "timestamp_ms" }).$defaultFn(
+      () => new Date(),
+    ),
     status: text("status", {
       enum: ["pending", "running", "pending_retry", "failed"],
     })
@@ -39,6 +42,7 @@ export const tasksTable = sqliteTable(
     maxNumRunsIdx: index("tasks_max_num_runs_idx").on(tasks.maxNumRuns),
     allocationIdIdx: index("tasks_allocation_id_idx").on(tasks.allocationId),
     priorityIdx: index("tasks_priority_idx").on(tasks.priority),
+    availableAtIdx: index("tasks_available_at_idx").on(tasks.availableAt),
     idempotencyKeyIdx: unique().on(tasks.queue, tasks.idempotencyKey),
   }),
 );

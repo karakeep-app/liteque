@@ -9,3 +9,4 @@ export type {
 export { Runner } from "./runner";
 
 export type { DequeuedJob, DequeuedJobError } from "./types";
+export { RetryAfterError } from "./types";

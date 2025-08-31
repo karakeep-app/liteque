@@ -14,3 +14,16 @@ export interface DequeuedJobError<T> {
   runNumber: number;
   numRetriesLeft: number;
 }
+
+/**
+ * Error that signals the runner to re-enqueue the job after a delay.
+ * This does NOT consume a retry attempt.
+ */
+export class RetryAfterError extends Error {
+  readonly delayMs: number;
+
+  constructor(delayMs: number) {
+    super("RetryAfter");
+    this.delayMs = delayMs;
+  }
+}

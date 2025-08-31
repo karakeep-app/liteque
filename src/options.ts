@@ -13,6 +13,8 @@ export interface EnqueueOptions {
   numRetries?: number;
   idempotencyKey?: string;
   priority?: number;
+  /** delay the job by this many milliseconds. */
+  delayMs?: number;
 }
 
 export interface RunnerFuncs<T> {
