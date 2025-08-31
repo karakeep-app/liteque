@@ -555,4 +555,40 @@ describe("SqliteQueue", () => {
       failed: 0,
     });
   });
+
+  test("expired running job with no retries should be marked as failed", async () => {
+    const queue = new SqliteQueue<Work>(
+      "expired-job-queue",
+      buildDBClient(":memory:", { runMigrations: true }),
+      {
+        defaultJobArgs: {
+          numRetries: 0, // No retries
+        },
+        keepFailedJobs: true,
+      },
+    );
+
+    // Enqueue a job
+    await queue.enqueue({ increment: 1 });
+
+    // Dequeue the job (makes it "running")
+    const dequeuedJob = await queue.attemptDequeue({ timeoutSecs: 1 }); // Short timeout
+    expect(dequeuedJob).not.toBeNull();
+    expect(dequeuedJob!.status).toBe("running");
+    expect(dequeuedJob!.numRunsLeft).toBe(0); // No retries left
+
+    // Wait for the job to expire
+    await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 1.5 seconds
+
+    // Try to dequeue again - should pick up the expired job for cleanup
+    const expiredJob = await queue.attemptDequeue({ timeoutSecs: 5 });
+    expect(expiredJob).toBeNull();
+
+    // Check stats - job should now be failed, not stuck in running
+    const stats = await queue.stats();
+    expect(stats.running).toBe(0);
+    expect(stats.failed).toBe(1);
+    expect(stats.pending).toBe(0);
+    expect(stats.pending_retry).toBe(0);
+  });
 });

@@ -91,7 +91,6 @@ export class SqliteQueue<T> {
         .where(
           and(
             eq(tasksTable.queue, this.queueName),
-            gt(tasksTable.numRunsLeft, 0),
             or(
               lte(tasksTable.availableAt, new Date()),
               isNull(tasksTable.availableAt),
@@ -119,6 +118,12 @@ export class SqliteQueue<T> {
       }
       assert(jobs.length === 1);
       const job = jobs[0];
+
+      if (job.numRunsLeft === 0) {
+        // Picked up an expired job
+        await this.finalize(job.id, job.allocationId, "failed");
+        return null;
+      }
 
       const result = await txn
         .update(tasksTable)
