@@ -6,9 +6,6 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
 import * as schema from "./schema";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 export type Options = {
   runMigrations?: boolean;
   walEnabled?: boolean;
@@ -42,5 +39,6 @@ export function buildDBClient(dbPath: string, _options: Options = {}) {
 }
 
 export function migrateDB(db: BetterSQLite3Database<typeof schema>) {
-  migrate(db, { migrationsFolder: path.join(__dirname, "drizzle") });
+  const migrationsPath = path.dirname(fileURLToPath(import.meta.resolve("./drizzle/0000_wonderful_talisman.sql")));
+  migrate(db, { migrationsFolder: migrationsPath });
 }
