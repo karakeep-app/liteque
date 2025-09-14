@@ -41,7 +41,7 @@ export function buildDBClient(dbPath: string, _options: Options = {}) {
 export function migrateDB(db: BetterSQLite3Database<typeof schema>) {
   const migrationsPath = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
-    "drizzle"
+    "drizzle",
   );
   migrate(db, { migrationsFolder: migrationsPath });
 }
