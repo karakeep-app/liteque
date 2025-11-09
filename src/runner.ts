@@ -6,15 +6,15 @@ import { SqliteQueue } from "./queue";
 import { Job } from "./schema";
 import { DequeuedJob, RetryAfterError } from "./types";
 
-export class Runner<T> {
+export class Runner<T, R = void> {
   queue: SqliteQueue<T>;
-  funcs: RunnerFuncs<T>;
+  funcs: RunnerFuncs<T, R>;
   opts: RunnerOptions<T>;
   stopping = false;
 
   constructor(
     queue: SqliteQueue<T>,
-    funcs: RunnerFuncs<T>,
+    funcs: RunnerFuncs<T, R>,
     opts: RunnerOptions<T>,
   ) {
     this.queue = queue;
@@ -110,16 +110,16 @@ export class Runner<T> {
       abortSignal: abortController.signal,
     };
     try {
-      await Promise.race([
+      const result = await Promise.race([
         this.funcs.run(dequeuedJob),
-        new Promise((_, reject) =>
+        new Promise<R>((_, reject) =>
           setTimeout(() => {
             abortController.abort();
             reject(new Error("Timeout"));
           }, this.opts.timeoutSecs * 1000),
         ),
       ]);
-      await this.funcs.onComplete?.(dequeuedJob);
+      await this.funcs.onComplete?.(dequeuedJob, result);
       await this.queue.finalize(job.id, job.allocationId, "completed");
     } catch (e) {
       if (e instanceof RetryAfterError) {
