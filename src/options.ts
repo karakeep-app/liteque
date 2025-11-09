@@ -17,9 +17,9 @@ export interface EnqueueOptions {
   delayMs?: number;
 }
 
-export interface RunnerFuncs<T> {
-  run: (job: DequeuedJob<T>) => Promise<void>;
-  onComplete?: (job: DequeuedJob<T>) => Promise<void>;
+export interface RunnerFuncs<T, R = void> {
+  run: (job: DequeuedJob<T>) => Promise<R>;
+  onComplete?: (job: DequeuedJob<T>, result: R) => Promise<void>;
   onError?: (job: DequeuedJobError<T>) => Promise<void>;
 }
 

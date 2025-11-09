@@ -565,4 +565,72 @@ describe("SqiteQueueRunner", () => {
       failed: 1,
     });
   });
+
+  test("run function can return result to onComplete", async () => {
+    const queue = new SqliteQueue<Work>(
+      "result-queue",
+      buildDBClient(":memory:", { runMigrations: true }),
+      {
+        defaultJobArgs: {
+          numRetries: 0,
+        },
+        keepFailedJobs: true,
+      },
+    );
+
+    await queue.enqueue({ increment: 5 });
+    await queue.enqueue({ increment: 10 });
+    await queue.enqueue({ increment: 15 });
+
+    interface JobResult {
+      processedValue: number;
+      message: string;
+    }
+
+    const completedResults: JobResult[] = [];
+
+    const runner = new Runner<Work, JobResult>(
+      queue,
+      {
+        run: async (job: DequeuedJob<Work>) => {
+          // Process the job and return a result
+          const processedValue = job.data.increment * 2;
+          return {
+            processedValue,
+            message: `Processed job ${job.id} with value ${processedValue}`,
+          };
+        },
+        onComplete: async (job: DequeuedJob<Work>, result: JobResult) => {
+          // Receive the result from run
+          completedResults.push(result);
+        },
+      },
+      { ...defaultRunnerOpts, concurrency: 1 },
+    );
+
+    await runner.runUntilEmpty();
+
+    // Verify all jobs completed
+    expect(await queue.stats()).toEqual({
+      pending: 0,
+      running: 0,
+      pending_retry: 0,
+      failed: 0,
+    });
+
+    // Verify results were passed to onComplete
+    expect(completedResults).toHaveLength(3);
+    expect(completedResults[0]).toEqual({
+      processedValue: 10,
+      message: expect.stringContaining("Processed job"),
+    });
+    expect(completedResults[1]).toEqual({
+      processedValue: 20,
+      message: expect.stringContaining("Processed job"),
+    });
+    expect(completedResults[2]).toEqual({
+      processedValue: 30,
+      message: expect.stringContaining("Processed job"),
+    });
+  });
 });
