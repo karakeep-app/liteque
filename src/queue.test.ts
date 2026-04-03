@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/require-await */
 import { describe, expect, test } from "vitest";
 
-import { SqliteQueue, buildDBClient } from "./";
+import { SqliteQueue } from "./";
+import { buildTestDBClient } from "./test-utils";
 
 interface Work {
   increment: number;
@@ -13,7 +14,7 @@ describe("SqliteQueue", () => {
   test("idempotency keys", async () => {
     const queue = new SqliteQueue<Work>(
       "queue1",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -39,7 +40,7 @@ describe("SqliteQueue", () => {
   test("keep failed jobs", async () => {
     const queueKeep = new SqliteQueue<Work>(
       "queue1",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -50,7 +51,7 @@ describe("SqliteQueue", () => {
 
     const queueDontKeep = new SqliteQueue<Work>(
       "queue2",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -95,7 +96,7 @@ describe("SqliteQueue", () => {
   test("priority ordering", async () => {
     const queue = new SqliteQueue<Work>(
       "priority-queue",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -145,7 +146,7 @@ describe("SqliteQueue", () => {
   test("priority with same priority uses FIFO", async () => {
     const queue = new SqliteQueue<Work>(
       "fifo-queue",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -176,7 +177,7 @@ describe("SqliteQueue", () => {
   test("default priority is 0", async () => {
     const queue = new SqliteQueue<Work>(
       "default-priority-queue",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -195,7 +196,7 @@ describe("SqliteQueue", () => {
   test("negative priorities work correctly", async () => {
     const queue = new SqliteQueue<Work>(
       "negative-priority-queue",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -230,7 +231,7 @@ describe("SqliteQueue", () => {
   test("cancelAllNonRunning cancels pending, pending_retry, and failed jobs", async () => {
     const queue = new SqliteQueue<Work>(
       "cancel-queue",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 1,
@@ -278,7 +279,7 @@ describe("SqliteQueue", () => {
   test("cancelAllNonRunning does not affect running jobs", async () => {
     const queue = new SqliteQueue<Work>(
       "cancel-running-queue",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -315,7 +316,7 @@ describe("SqliteQueue", () => {
   });
 
   test("cancelAllNonRunning only affects the specific queue", async () => {
-    const db = buildDBClient(":memory:", { runMigrations: true });
+    const db = buildTestDBClient();
     const queue1 = new SqliteQueue<Work>("queue1", db, {
       defaultJobArgs: { numRetries: 0 },
       keepFailedJobs: false,
@@ -365,7 +366,7 @@ describe("SqliteQueue", () => {
   test("cancelAllNonRunning returns 0 when no tasks to cancel", async () => {
     const queue = new SqliteQueue<Work>(
       "empty-cancel-queue",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -388,7 +389,7 @@ describe("SqliteQueue", () => {
   test("cancelAllNonRunning handles pending_retry status", async () => {
     const queue = new SqliteQueue<Work>(
       "retry-cancel-queue",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 2,
@@ -432,7 +433,7 @@ describe("SqliteQueue", () => {
   test("availableAt scheduling", async () => {
     const queue = new SqliteQueue<Work>(
       "available-at-queue",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -461,7 +462,7 @@ describe("SqliteQueue", () => {
   test("availableAt jobs become available after the scheduled time", async () => {
     const queue = new SqliteQueue<Work>(
       "available-later-queue",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -494,7 +495,7 @@ describe("SqliteQueue", () => {
   test("finalize with refund retry increments numRunsLeft", async () => {
     const queue = new SqliteQueue<Work>(
       "refund-retry-queue",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 1,
@@ -559,7 +560,7 @@ describe("SqliteQueue", () => {
   test("expired running job with no retries should be marked as failed", async () => {
     const queue = new SqliteQueue<Work>(
       "expired-job-queue",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 0, // No retries

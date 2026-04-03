@@ -8,7 +8,7 @@ export default defineConfig({
   outDir: "dist",
   target: "node18",
   platform: "node",
-  external: ["better-sqlite3"],
+  external: [],
   onSuccess: async () => {
     // Copy drizzle migration files to dist
     const { execSync } = await import("node:child_process");

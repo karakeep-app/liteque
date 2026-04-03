@@ -11,9 +11,9 @@ import {
   Runner,
   RunnerOptions,
   SqliteQueue,
-  buildDBClient,
 } from "./";
 import { tasksTable } from "./schema";
+import { buildTestDBClient } from "./test-utils";
 
 class Baton {
   semaphore: Semaphore;
@@ -141,7 +141,7 @@ describe("SqiteQueueRunner", () => {
   test("should run jobs with correct concurrency", async () => {
     const queue = new SqliteQueue<Work>(
       "queue1",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -203,7 +203,7 @@ describe("SqiteQueueRunner", () => {
   test("should retry errors", async () => {
     const queue = new SqliteQueue<Work>(
       "queue1",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 2,
@@ -241,7 +241,7 @@ describe("SqiteQueueRunner", () => {
   test("timeouts are respected", async () => {
     const queue = new SqliteQueue<Work>(
       "queue1",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 1,
@@ -277,7 +277,7 @@ describe("SqiteQueueRunner", () => {
   test("serialization errors", async () => {
     const queue = new SqliteQueue<Work>(
       "queue1",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 1,
@@ -322,7 +322,7 @@ describe("SqiteQueueRunner", () => {
   test("concurrent runners", async () => {
     const queue = new SqliteQueue<Work>(
       "queue1",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 0,
@@ -384,7 +384,7 @@ describe("SqiteQueueRunner", () => {
   });
 
   test("large test", async () => {
-    const db = buildDBClient(":memory:", { runMigrations: true });
+    const db = buildTestDBClient();
     const queue1 = new SqliteQueue<Work>("queue1", db, {
       defaultJobArgs: {
         numRetries: 0,
@@ -447,7 +447,7 @@ describe("SqiteQueueRunner", () => {
   test("RetryAfterError re-enqueues job with delay without consuming retry", async () => {
     const queue = new SqliteQueue<Work>(
       "retry-after-queue",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 2,
@@ -507,7 +507,7 @@ describe("SqiteQueueRunner", () => {
   test("RetryAfterError preserves retry attempts", async () => {
     const queue = new SqliteQueue<Work>(
       "retry-after-preserve-queue",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 1,
@@ -569,7 +569,7 @@ describe("SqiteQueueRunner", () => {
   test("run function can return result to onComplete", async () => {
     const queue = new SqliteQueue<Work>(
       "result-queue",
-      buildDBClient(":memory:", { runMigrations: true }),
+      buildTestDBClient(),
       {
         defaultJobArgs: {
           numRetries: 0,

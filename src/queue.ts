@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { and, asc, count, eq, gt, isNull, lt, lte, or, sql } from "drizzle-orm";
 
-import { buildDBClient } from "./db";
+import { LitequeDB } from "./db";
 import { EnqueueOptions, SqliteQueueOptions } from "./options";
 import { Job, tasksTable } from "./schema";
 
@@ -12,12 +12,12 @@ function generateAllocationId() {
 
 export class SqliteQueue<T> {
   queueName: string;
-  db: ReturnType<typeof buildDBClient>;
+  db: LitequeDB;
   options: SqliteQueueOptions;
 
   constructor(
     name: string,
-    db: ReturnType<typeof buildDBClient>,
+    db: LitequeDB,
     options: SqliteQueueOptions,
   ) {
     this.queueName = name;

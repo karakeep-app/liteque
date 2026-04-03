@@ -1,5 +1,6 @@
 export { SqliteQueue } from "./queue";
-export { buildDBClient, migrateDB } from "./db";
+export { getMigrationsPath } from "./db";
+export type { LitequeDB } from "./db";
 export type {
   SqliteQueueOptions,
   RunnerOptions,
