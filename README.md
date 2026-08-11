@@ -65,6 +65,40 @@ const worker = new Runner<ZRequest>(
 
 ```
 
+### Sharing a polling loop
+
+Queues backed by the same database can share one polling loop while keeping
+separate handlers, validators, timeouts, and concurrency limits:
+
+```ts
+import { RunnerPool } from "liteque";
+
+const pool = new RunnerPool(db, { pollIntervalMs: 1000 })
+  .register(
+    requestQueue,
+    { run: async (job) => handleRequest(job.data) },
+    {
+      concurrency: 2,
+      timeoutSecs: 60,
+      validator: requestSchema,
+    },
+  )
+  .register(
+    cleanupQueue,
+    { run: async (job) => cleanUp(job.data) },
+    {
+      concurrency: 1,
+      timeoutSecs: 30,
+      validator: cleanupSchema,
+    },
+  );
+
+await pool.run();
+```
+
+When the queues are idle, the pool performs one cross-queue dequeue attempt per
+poll interval instead of one attempt per queue.
+
 ## Development
 
 ```base
