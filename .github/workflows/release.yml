@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -20,15 +20,9 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - shell: bash
-        run: corepack enable
-
-      - shell: bash
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Build
         run: pnpm build
 
-        # npm 11.5.1 or later is required for trusted publishing
-      - run: npm install -g npm@latest
-
-      - run: pnpm publish --access public --no-git-checks
+      - run: pnpm publish --access public --no-git-checks --provenance

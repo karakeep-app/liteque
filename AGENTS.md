@@ -4,7 +4,7 @@
 - `pnpm build` - Build TypeScript to dist/ and copy drizzle files
 - `pnpm typecheck` - Type check without emitting files
 - `pnpm test` - Run all tests with vitest
-- `pnpm test -- --run` - Run tests once (no watch mode)
+- `pnpm test --run` - Run tests once (no watch mode)
 - `pnpm test -- src/queue.test.ts` - Run single test file
 - `pnpm lint` - Check code with Biome linter
 - `pnpm lint:fix` - Auto-fix linting issues

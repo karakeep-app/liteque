@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -27,10 +27,7 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - shell: bash
-        run: corepack enable
-
-      - shell: bash
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Typecheck
         run: pnpm typecheck
@@ -38,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -46,10 +43,7 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - shell: bash
-        run: corepack enable
-
-      - shell: bash
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Format and lint
         run: pnpm exec biome ci
@@ -57,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -65,10 +59,7 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - shell: bash
-        run: corepack enable
+        run: pnpm install --frozen-lockfile
 
-      - shell: bash
-        run: pnpm install
-      
       - name: Test
-        run: pnpm test run
+        run: pnpm test --run
