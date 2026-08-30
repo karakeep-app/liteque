@@ -84,8 +84,8 @@ export class SqliteQueue<T> {
   }
 
   async attemptDequeue(options: { timeoutSecs: number }): Promise<Job | null> {
-    return await this.db.transaction(async (txn) => {
-      const jobs = await txn
+    return this.db.transaction((txn) => {
+      const jobs = txn
         .select()
         .from(tasksTable)
         .where(
@@ -111,7 +111,8 @@ export class SqliteQueue<T> {
           ),
         )
         .orderBy(asc(tasksTable.priority), asc(tasksTable.createdAt))
-        .limit(1);
+        .limit(1)
+        .all();
 
       if (jobs.length === 0) {
         return null;
@@ -121,11 +122,36 @@ export class SqliteQueue<T> {
 
       if (job.numRunsLeft === 0) {
         // Picked up an expired job
-        await this.finalize(job.id, job.allocationId, "failed");
+        if (this.options.keepFailedJobs) {
+          txn
+            .update(tasksTable)
+            .set({
+              status: "failed",
+              expireAt: null,
+              availableAt: new Date(),
+            })
+            .where(
+              and(
+                eq(tasksTable.id, job.id),
+                eq(tasksTable.allocationId, job.allocationId),
+              ),
+            )
+            .run();
+        } else {
+          txn
+            .delete(tasksTable)
+            .where(
+              and(
+                eq(tasksTable.id, job.id),
+                eq(tasksTable.allocationId, job.allocationId),
+              ),
+            )
+            .run();
+        }
         return null;
       }
 
-      const result = await txn
+      const result = txn
         .update(tasksTable)
         .set({
           status: "running",
@@ -141,7 +167,8 @@ export class SqliteQueue<T> {
             eq(tasksTable.allocationId, job.allocationId),
           ),
         )
-        .returning();
+        .returning()
+        .all();
       if (result.length === 0) {
         return null;
       }
