@@ -84,97 +84,102 @@ export class SqliteQueue<T> {
   }
 
   async attemptDequeue(options: { timeoutSecs: number }): Promise<Job | null> {
-    return this.db.transaction((txn) => {
-      const jobs = txn
-        .select()
-        .from(tasksTable)
-        .where(
-          and(
-            eq(tasksTable.queue, this.queueName),
-            or(
-              lte(tasksTable.availableAt, new Date()),
-              isNull(tasksTable.availableAt),
-            ),
-            or(
-              // Not picked by a worker yet
-              eq(tasksTable.status, "pending"),
+    return this.db.transaction(
+      (txn) => {
+        const jobs = txn
+          .select()
+          .from(tasksTable)
+          .where(
+            and(
+              eq(tasksTable.queue, this.queueName),
+              or(
+                lte(tasksTable.availableAt, new Date()),
+                isNull(tasksTable.availableAt),
+              ),
+              or(
+                // Not picked by a worker yet
+                eq(tasksTable.status, "pending"),
 
-              // Failed but still has attempts left
-              eq(tasksTable.status, "pending_retry"),
+                // Failed but still has attempts left
+                eq(tasksTable.status, "pending_retry"),
 
-              // Expired and still has attempts left
-              and(
-                eq(tasksTable.status, "running"),
-                lt(tasksTable.expireAt, new Date()),
+                // Expired and still has attempts left
+                and(
+                  eq(tasksTable.status, "running"),
+                  lt(tasksTable.expireAt, new Date()),
+                ),
               ),
             ),
-          ),
-        )
-        .orderBy(asc(tasksTable.priority), asc(tasksTable.createdAt))
-        .limit(1)
-        .all();
+          )
+          .orderBy(asc(tasksTable.priority), asc(tasksTable.createdAt))
+          .limit(1)
+          .all();
 
-      if (jobs.length === 0) {
-        return null;
-      }
-      assert(jobs.length === 1);
-      const job = jobs[0];
-
-      if (job.numRunsLeft === 0) {
-        // Picked up an expired job
-        if (this.options.keepFailedJobs) {
-          txn
-            .update(tasksTable)
-            .set({
-              status: "failed",
-              expireAt: null,
-              availableAt: new Date(),
-            })
-            .where(
-              and(
-                eq(tasksTable.id, job.id),
-                eq(tasksTable.allocationId, job.allocationId),
-              ),
-            )
-            .run();
-        } else {
-          txn
-            .delete(tasksTable)
-            .where(
-              and(
-                eq(tasksTable.id, job.id),
-                eq(tasksTable.allocationId, job.allocationId),
-              ),
-            )
-            .run();
+        if (jobs.length === 0) {
+          return null;
         }
-        return null;
-      }
+        assert(jobs.length === 1);
+        const job = jobs[0];
 
-      const result = txn
-        .update(tasksTable)
-        .set({
-          status: "running",
-          numRunsLeft: job.numRunsLeft - 1,
-          allocationId: generateAllocationId(),
-          expireAt: new Date(new Date().getTime() + options.timeoutSecs * 1000),
-        })
-        .where(
-          and(
-            eq(tasksTable.id, job.id),
+        if (job.numRunsLeft === 0) {
+          // Picked up an expired job
+          if (this.options.keepFailedJobs) {
+            txn
+              .update(tasksTable)
+              .set({
+                status: "failed",
+                expireAt: null,
+                availableAt: new Date(),
+              })
+              .where(
+                and(
+                  eq(tasksTable.id, job.id),
+                  eq(tasksTable.allocationId, job.allocationId),
+                ),
+              )
+              .run();
+          } else {
+            txn
+              .delete(tasksTable)
+              .where(
+                and(
+                  eq(tasksTable.id, job.id),
+                  eq(tasksTable.allocationId, job.allocationId),
+                ),
+              )
+              .run();
+          }
+          return null;
+        }
 
-            // The compare and swap is necessary to avoid race conditions
-            eq(tasksTable.allocationId, job.allocationId),
-          ),
-        )
-        .returning()
-        .all();
-      if (result.length === 0) {
-        return null;
-      }
-      assert(result.length === 1);
-      return result[0];
-    });
+        const result = txn
+          .update(tasksTable)
+          .set({
+            status: "running",
+            numRunsLeft: job.numRunsLeft - 1,
+            allocationId: generateAllocationId(),
+            expireAt: new Date(
+              new Date().getTime() + options.timeoutSecs * 1000,
+            ),
+          })
+          .where(
+            and(
+              eq(tasksTable.id, job.id),
+
+              // The compare and swap is necessary to avoid race conditions
+              eq(tasksTable.allocationId, job.allocationId),
+            ),
+          )
+          .returning()
+          .all();
+        if (result.length === 0) {
+          return null;
+        }
+        assert(result.length === 1);
+        return result[0];
+      },
+      { behavior: "immediate" },
+    );
   }
 
   async finalize(

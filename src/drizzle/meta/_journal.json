@@ -29,6 +29,13 @@
       "when": 1756665292211,
       "tag": "0003_add_available_at",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1788189487993,
+      "tag": "0004_dequeue_index",
+      "breakpoints": true
     }
   ]
 }

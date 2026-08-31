@@ -42,6 +42,11 @@ export const tasksTable = sqliteTable(
     maxNumRunsIdx: index("tasks_max_num_runs_idx").on(tasks.maxNumRuns),
     allocationIdIdx: index("tasks_allocation_id_idx").on(tasks.allocationId),
     priorityIdx: index("tasks_priority_idx").on(tasks.priority),
+    dequeueIdx: index("tasks_dequeue_idx").on(
+      tasks.queue,
+      tasks.priority,
+      tasks.createdAt,
+    ),
     availableAtIdx: index("tasks_available_at_idx").on(tasks.availableAt),
     idempotencyKeyIdx: unique().on(tasks.queue, tasks.idempotencyKey),
   }),

@@ -1,0 +1,1 @@
+CREATE INDEX `tasks_dequeue_idx` ON `tasks` (`queue`,`priority`,`createdAt`);
