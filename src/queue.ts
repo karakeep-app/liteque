@@ -14,6 +14,7 @@ export class SqliteQueue<T> {
   queueName: string;
   db: ReturnType<typeof buildDBClient>;
   options: SqliteQueueOptions;
+  private wasEmpty = false;
 
   constructor(
     name: string,
@@ -83,39 +84,51 @@ export class SqliteQueue<T> {
     );
   }
 
+  /** Match jobs that can be claimed or need expired-attempt cleanup. */
+  private eligibleJobs() {
+    const now = new Date();
+    return and(
+      eq(tasksTable.queue, this.queueName),
+      or(lte(tasksTable.availableAt, now), isNull(tasksTable.availableAt)),
+      or(
+        // Not picked by a worker yet
+        eq(tasksTable.status, "pending"),
+
+        // Failed but still has attempts left
+        eq(tasksTable.status, "pending_retry"),
+
+        // Expired; reclaim if attempts remain, otherwise clean up
+        and(eq(tasksTable.status, "running"), lt(tasksTable.expireAt, now)),
+      ),
+    );
+  }
+
   async attemptDequeue(options: { timeoutSecs: number }): Promise<Job | null> {
+    // Idle polls only read. Claims still recheck eligibility under the writer lock.
+    if (this.wasEmpty) {
+      const ready = this.db
+        .select({ id: tasksTable.id })
+        .from(tasksTable)
+        .where(this.eligibleJobs())
+        .limit(1)
+        .get();
+      if (!ready) {
+        return null;
+      }
+    }
+
     return this.db.transaction(
       (txn) => {
         const jobs = txn
           .select()
           .from(tasksTable)
-          .where(
-            and(
-              eq(tasksTable.queue, this.queueName),
-              or(
-                lte(tasksTable.availableAt, new Date()),
-                isNull(tasksTable.availableAt),
-              ),
-              or(
-                // Not picked by a worker yet
-                eq(tasksTable.status, "pending"),
-
-                // Failed but still has attempts left
-                eq(tasksTable.status, "pending_retry"),
-
-                // Expired and still has attempts left
-                and(
-                  eq(tasksTable.status, "running"),
-                  lt(tasksTable.expireAt, new Date()),
-                ),
-              ),
-            ),
-          )
+          .where(this.eligibleJobs())
           .orderBy(asc(tasksTable.priority), asc(tasksTable.createdAt))
           .limit(1)
           .all();
 
-        if (jobs.length === 0) {
+        this.wasEmpty = jobs.length === 0;
+        if (this.wasEmpty) {
           return null;
         }
         assert(jobs.length === 1);

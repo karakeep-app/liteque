@@ -110,15 +110,21 @@ export class Runner<T, R = void> {
       abortSignal: abortController.signal,
     };
     try {
-      const result = await Promise.race([
-        this.funcs.run(dequeuedJob),
-        new Promise<R>((_, reject) =>
-          setTimeout(() => {
-            abortController.abort();
-            reject(new Error("Timeout"));
-          }, this.opts.timeoutSecs * 1000),
-        ),
-      ]);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let result: R;
+      try {
+        result = await Promise.race([
+          this.funcs.run(dequeuedJob),
+          new Promise<R>((_, reject) => {
+            timer = setTimeout(() => {
+              abortController.abort();
+              reject(new Error("Timeout"));
+            }, this.opts.timeoutSecs * 1000);
+          }),
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
       await this.funcs.onComplete?.(dequeuedJob, result);
       await this.queue.finalize(job.id, job.allocationId, "completed");
     } catch (e) {
