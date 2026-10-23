@@ -197,7 +197,7 @@ export class SqliteQueue<T> {
 
   async finalize(
     id: number,
-    alloctionId: string,
+    allocationId: string,
     status: "completed" | "pending_retry" | "failed",
     availableAt: Date = new Date(),
     refundRetry = false,
@@ -209,7 +209,7 @@ export class SqliteQueue<T> {
       await this.db
         .delete(tasksTable)
         .where(
-          and(eq(tasksTable.id, id), eq(tasksTable.allocationId, alloctionId)),
+          and(eq(tasksTable.id, id), eq(tasksTable.allocationId, allocationId)),
         );
     } else {
       await this.db
@@ -223,7 +223,7 @@ export class SqliteQueue<T> {
             : sql<number>`${tasksTable.numRunsLeft}`,
         })
         .where(
-          and(eq(tasksTable.id, id), eq(tasksTable.allocationId, alloctionId)),
+          and(eq(tasksTable.id, id), eq(tasksTable.allocationId, allocationId)),
         );
     }
   }
